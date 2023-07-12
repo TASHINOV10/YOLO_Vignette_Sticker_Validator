@@ -18,9 +18,9 @@ import requests
 #Set the paths according to your setup
 tesseract_executable = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 pytesseract.pytesseract.tesseract_cmd = tesseract_executable
-weightsPath = 'C:/Users/Iliyan Tashinov/Desktop/YOLO_Vignette_Sticker_Validator/weights/epochs_100/last.pt'
+weightsPath = 'C:/Users/[...]/Desktop/YOLO_Vignette_Sticker_Validator/weights/epochs_100/last.pt'
 model = torch.hub.load('ultralytics/yolov5', 'custom', path= weightsPath, force_reload=True)
-video = 'C:/Users/Iliyan Tashinov/Desktop/YOLO_Vignette_Sticker_Validator/video_test.mp4'
+video = 'C:/Users/[...]/Desktop/YOLO_Vignette_Sticker_Validator/video_test.mp4'
 
 #Define the functions
 
