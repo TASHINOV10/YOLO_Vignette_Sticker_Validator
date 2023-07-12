@@ -204,7 +204,7 @@ def get_extraction(gray_frame,detections,frame_count):
     data = detections
     crop = get_crop(gray_frame,data)
     crop_contoured = get_contour1(crop)
-    license_plate = extract_license(crop_contoured,frame_count)
+    license_plate = extract_license(crop_contoured)
     print(license_plate)
     
     if plate_format.match(license_plate) is not None or plate_format1.match(license_plate) is not None:
