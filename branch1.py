@@ -1,5 +1,3 @@
-import threading
-import time
 
 #-------------MAIN THREAD---------------------
 #YOLO recognizes the license plate in the frame
@@ -57,7 +55,10 @@ t1.join()
 #------------------------------------------MAIN CODE--------------------------------------
 
 #Install necessary libraries
-
+import time
+import threading
+import os
+import queue
 import torch
 from matplotlib import pyplot as plt
 import numpy as np
@@ -171,7 +172,9 @@ def get_extraction(gray_frame, detections, frame_count,ith_detection):
     data = detections
     crop = get_crop(gray_frame, data)
     crop_contoured = get_contour1(crop)
-    cv2.imwrite(f'C:/Users/Iliyan Tashinov/Desktop/YOLO_Vignette_Sticker_Validator/crops/crop_contoured{frame_count}_{int(ith_detection)+1}.png', crop_contoured)
+    global filePath
+    filePath = f'C:/Users/Iliyan Tashinov/Desktop/YOLO_Vignette_Sticker_Validator/crops/crop_contoured{frame_count}_{int(ith_detection)+1}.png'
+    cv2.imwrite(filePath, crop_contoured)
 
 '''
     license_plate = extract_license(crop_contoured)
@@ -204,12 +207,25 @@ def check_license(license_plate):
     return result_text, time_left
 
 
+
+
+
 #set empty lists
 crop_index = []
 number_plate = []
 date =[]
 validation_df = []
 time_remaining_lst = []
+crop_queue= queue.Queue()
+
+
+print("everything loaded up until here")
+def printPath(queue):
+
+    print(queue.get())
+    time.sleep(5)
+    print("waiting 5 seconds")
+
 
 # load video
 cap = cv2.VideoCapture(video)
@@ -239,6 +255,10 @@ while cap.isOpened():
         a, b = draw_rectangle(frame_resized, results.xyxy[0][i])
         gray_frame = format_frame(frame)
         extraction = get_extraction(gray_frame, results.xyxy[0][i], frame_count,i)
+        crop_queue.put(filePath)
+        t1 = threading.Thread(target=printPath,args = (crop_queue,))
+        t1.start()
+        
 
     frame_count += 1
 
@@ -247,6 +267,7 @@ while cap.isOpened():
 
     if cv2.waitKey(10) & 0xFF == ord('s'):
         break
+
 
 cap.release()
 cv2.destroyAllWindows()
