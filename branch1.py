@@ -136,19 +136,20 @@ def check_license(license_plate):
         validation_lst.append(result_text)
         time_remaining_lst.append(time_left)
         numPlt_lst.append(license_plate)
+        numPlt_lst_1.append(license_plate)
+        time_remaining_lst_1.append(time_left)
         date_lst.append(datetime.today().strftime("%d/%m/%Y %H:%M:%S"))
         return 0
 
     result_text = "Vignette is valid"
     time_left = p['vignette']['validityDateToFormated']
+    numPlt_lst_1.append(license_plate)
+    time_remaining_lst_1.append(time_left)
     validation_lst.append(result_text)
     time_remaining_lst.append(time_left)
     numPlt_lst.append(license_plate)
     date_lst.append(datetime.today().strftime("%d/%m/%Y %H:%M:%S"))
     return 0
-
-
-
 
 #set empty lists
 crop_index = []
@@ -159,7 +160,13 @@ time_remaining_lst = []
 time_lst = []
 crop_que= queue.Queue()
 extracted_que = queue.Queue()
+numPlt_lst_1 = []
+time_remaining_lst_1 = []
 
+start_point = (0, 0)
+end_point = (380, 100)
+color = (50, 50, 50)
+thickness = -1
 
 print("everything loaded up until here")
 def printPath(queue):
@@ -174,7 +181,23 @@ def printPath(queue):
         return 0
     return 0
 
+def printConsoleOutput(frame):
 
+    x, y = 20, 50  # Position of the label in the window
+    line_height = 18  # Height between each list item
+    for idx, item in enumerate(numPlt_lst_1):
+        cv2.putText(frame, item, (x, y + idx * line_height), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.8, (0,180,0), 1)
+
+    x, y = 115, 50  # Position of the label in the window
+    line_height = 18  # Height between each list item
+    for idx, item in enumerate(time_remaining_lst_1):
+        cv2.putText(frame, item, (x, y + idx * line_height), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.8, (0,180,0), 1)
+
+    if len(numPlt_lst_1) > 3:
+            numPlt_lst_1.pop()
+            time_remaining_lst_1.pop()
+
+    cv2.rectangle(frame, start_point, end_point, color, thickness)
 
 # load video
 cap = cv2.VideoCapture(video)
@@ -182,10 +205,17 @@ frame_count = 1
 
 # start video
 while cap.isOpened():
+
+
     start_time = time.time()
     ret, frame = cap.read()  # ret is boolean, returns true if frame is available;
     frame_resized = cv2.resize(frame, (608, 608))  # resizing the frames for better utilization of YOLO
     results = model(frame_resized)  # run YOLO on the resized frame
+
+    cv2.putText(frame_resized, "CONSOLE", (50, 20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 180, 0), 1)
+    printConsoleOutput(frame_resized)
+
+
     print(f'-----number of plates detected = {len((results.xyxy[0]))} - at frame {frame_count}--------------')
     #    ---      ---      ---        0  1  2  3  4  5
     # loop through elements in tensor[h1,w1,h2,w2,cf,lb]
@@ -219,7 +249,6 @@ while cap.isOpened():
     if cv2.waitKey(10) & 0xFF == ord('s') or frame_count == 100:
         break
 
-
 cap.release()
 cv2.destroyAllWindows()
 
@@ -232,13 +261,13 @@ for i in range(0,11):
 
 data = list(zip(numPlt_lst,date_lst,validation_lst, time_remaining_lst))
 df = pd.DataFrame(data, columns=["number plate","detected on", "vignette status", "date-time of expiry"])
-print("-------------------------------------printing df------------------------------------------")
+print("-------------------------------------Data Export------------------------------------------")
 print(df)
 
 def Average(lst):
     return sum(lst) / len(lst)
 
 average = Average(time_lst)
-
+print("-------------------------------------Performance Stats-------------------------------------")
 print("Average time needed for a frame to load=", round(average, 2))
 print(f"Total Frames = {frame_count}")
