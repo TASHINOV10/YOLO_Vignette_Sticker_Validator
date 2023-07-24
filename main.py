@@ -148,6 +148,7 @@ def check_license(license_plate):
 crop_index = []
 number_plate = []
 date =[]
+time_lst = []
 validation_df = []
 time_remaining_lst = []
 
@@ -157,6 +158,9 @@ frame_count = 1
 
 # start video
 while cap.isOpened():
+
+    start_time = time.time()
+
     ret, frame = cap.read()  # ret is boolean, returns true if frame is available;
     frame_resized = cv2.resize(frame, (608, 608))  # resizing the frames for better utilization of YOLO
 
@@ -215,12 +219,13 @@ while cap.isOpened():
 
         print(f'++++end of analysis for detection number {i + 1}++++')
 
+    time_lst = [time.time() - start_time]
     frame_count += 1
 
     # display frame
     cv2.imshow('YOLO', frame_resized)
 
-    if cv2.waitKey(10) & 0xFF == ord('s'):
+    if cv2.waitKey(10) & 0xFF == ord('s') or frame_count == 100:
         break
 
 cap.release()
@@ -232,3 +237,12 @@ data = list(zip(crop_index, number_plate, date
 df = pd.DataFrame(data, columns=["frame", "number plate", "time of detection", "sticker status", "time until expiry"])
 
 print(df)
+
+
+def Average(lst):
+    return sum(lst) / len(lst)
+
+average = Average(time_lst)
+
+print("Average time needed for a frame to load=", round(average, 2))
+print(f"Total Frames = {frame_count}")

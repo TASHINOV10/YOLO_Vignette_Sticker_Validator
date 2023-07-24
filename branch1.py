@@ -119,8 +119,8 @@ def get_contour1(crop):
     return crop_contoured
 
 
-def extract_license(crop_contoured):
-
+def extract_license(crop_path):
+    crop_contoured = cv2.imread(crop_path,cv2.COLOR_BGR2GRAY)
     analysis = cv2.connectedComponentsWithStats(crop_contoured,4,cv2.CV_32S)
     (totalLabels, label_ids, values, centroid) = analysis
     symbolList = []
@@ -167,8 +167,6 @@ def extract_license(crop_contoured):
 
 def get_extraction(gray_frame, detections, frame_count,ith_detection):
     frame_count = frame_count
-    plate_format = re.compile('^[a-zA-Z]{2}[0-9]{4}[a-zA-Z]{2}$')
-    plate_format1 = re.compile('^[a-zA-Z]{1}[0-9]{4}[a-zA-Z]{2}$')
     data = detections
     crop = get_crop(gray_frame, data)
     crop_contoured = get_contour1(crop)
@@ -176,16 +174,6 @@ def get_extraction(gray_frame, detections, frame_count,ith_detection):
     filePath = f'C:/Users/Iliyan Tashinov/Desktop/YOLO_Vignette_Sticker_Validator/crops/crop_contoured{frame_count}_{int(ith_detection)+1}.png'
     cv2.imwrite(filePath, crop_contoured)
 
-'''
-    license_plate = extract_license(crop_contoured)
-    print(license_plate)
-
-    if plate_format.match(license_plate) is not None or plate_format1.match(license_plate) is not None:
-        return crop_contoured, license_plate
-
-    license_plate = "N/A"
-    return crop_contoured, license_plate
-'''
 
 def check_license(license_plate):
     my_url = 'https://check.bgtoll.bg/check/vignette/plate/BG/' + license_plate
@@ -200,31 +188,47 @@ def check_license(license_plate):
     if (p['vignette'] is None):
         result_text = "Vignette not valid."
         time_left = "N/A"
-        return result_text, time_left
+        validation_lst.append(result_text)
+        time_remaining_lst.append(time_left)
+        numPlt_lst.append(license_plate)
+        date_lst.append(datetime.today().strftime("%d/%m/%Y %H:%M:%S"))
+        return 0
 
     result_text = "Vignette is valid"
     time_left = p['vignette']['validityDateToFormated']
-    return result_text, time_left
-
+    validation_lst.append(result_text)
+    time_remaining_lst.append(time_left)
+    numPlt_lst.append(license_plate)
+    date_lst.append(datetime.today().strftime("%d/%m/%Y %H:%M:%S"))
+    return 0
 
 
 
 
 #set empty lists
 crop_index = []
-number_plate = []
-date =[]
-validation_df = []
+numPlt_lst = []
+date_lst =[]
+validation_lst = []
 time_remaining_lst = []
-crop_queue= queue.Queue()
+time_lst = []
+crop_que= queue.Queue()
+extracted_que = queue.Queue()
 
 
 print("everything loaded up until here")
 def printPath(queue):
+    crop_path = queue.get()
+    license = extract_license(crop_path)
+    plate_format = re.compile('^[a-zA-Z]{2}[0-9]{4}[a-zA-Z]{2}$')
+    plate_format1 = re.compile('^[a-zA-Z]{1}[0-9]{4}[a-zA-Z]{2}$')
 
-    print(queue.get())
-    time.sleep(5)
-    print("waiting 5 seconds")
+    if (plate_format.match(license) is not None or plate_format1.match(license) is not None) and license not in numPlt_lst:
+        extracted_que.put(license)
+        check_license(license)
+        return 0
+    return 0
+
 
 
 # load video
@@ -233,6 +237,7 @@ frame_count = 1
 
 # start video
 while cap.isOpened():
+    start_time = time.time()
     ret, frame = cap.read()  # ret is boolean, returns true if frame is available;
     frame_resized = cv2.resize(frame, (608, 608))  # resizing the frames for better utilization of YOLO
     results = model(frame_resized)  # run YOLO on the resized frame
@@ -255,21 +260,42 @@ while cap.isOpened():
         a, b = draw_rectangle(frame_resized, results.xyxy[0][i])
         gray_frame = format_frame(frame)
         extraction = get_extraction(gray_frame, results.xyxy[0][i], frame_count,i)
-        crop_queue.put(filePath)
-        t1 = threading.Thread(target=printPath,args = (crop_queue,))
+        crop_que.put(filePath)
+        t1 = threading.Thread(target=printPath,args = (crop_que,))
         t1.start()
-        
+
+    time_lst.append(time.time() - start_time)
 
     frame_count += 1
 
     # display frame
     cv2.imshow('YOLO', frame_resized)
 
-    if cv2.waitKey(10) & 0xFF == ord('s'):
+    if cv2.waitKey(10) & 0xFF == ord('s') or frame_count == 100:
         break
 
 
 cap.release()
 cv2.destroyAllWindows()
 
+t1.join()
 
+
+
+print("waiting before print")
+for i in range(0,11):
+    time.sleep(1)
+    print(f'{i} seconds')
+
+data = list(zip(numPlt_lst,date_lst,validation_lst, time_remaining_lst))
+df = pd.DataFrame(data, columns=["number plate","detected on", "vignette status", "date-time of expiry"])
+print("-------------------------------------printing df------------------------------------------")
+print(df)
+
+def Average(lst):
+    return sum(lst) / len(lst)
+
+average = Average(time_lst)
+
+print("Average time needed for a frame to load=", round(average, 2))
+print(f"Total Frames = {frame_count}")
