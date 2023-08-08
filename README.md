@@ -4,6 +4,11 @@ This repository contains code for license plate recognition using the YOLO (You 
 
 ![gif4e](ezgif.com-video-to-gif.gif)
 
+# Process Flow Diagram
+
+![diagram](diagram.jpeg)
+
+
 ## Getting Started
 
 To get started with the code, follow the steps below:
