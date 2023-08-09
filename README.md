@@ -4,6 +4,9 @@ This repository contains code for license plate recognition using the YOLO (You 
 
 ![gif4e](ezgif.com-video-to-gif.gif)
 
+## Process Flow Diagram
+
+![diagram](diagram.jpeg)
 
 ## Getting Started
 
@@ -358,7 +361,5 @@ data = list(zip(crop_index,number_plate,date
                 ,validation_df,time_remaining_lst))
 df = pd.DataFrame(data,columns = ["frame","number plate","time of detection","sticker status","time until expiry"])
 ```
-## Process Flow Diagram
 
-![diagram](diagram.jpeg)
 
