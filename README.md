@@ -1,4 +1,4 @@
-# YOLO-Vignette-Sticker-Validator
+# YOLOv5_Vignette_Sticker_Validator
 
 This repository contains code for license plate recognition using the YOLO (You Only Look Once) object detection model. The code allows you to detect vehicle license plates in videos and then validate whether the vehicle in question has valid vignette sticker. Validation requests are done through the website of the Bulgarian National Toll Administraiton.
 
