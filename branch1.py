@@ -1,5 +1,9 @@
-#Install necessary libraries
 
+#Install necessary libraries
+import time
+import threading
+import os
+import queue
 import torch
 from matplotlib import pyplot as plt
 import numpy as np
@@ -18,9 +22,9 @@ import requests
 #Set the paths according to your setup
 tesseract_executable = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 pytesseract.pytesseract.tesseract_cmd = tesseract_executable
-weightsPath = 'C:/Users/[...]/Desktop/YOLO_Vignette_Sticker_Validator/weights/epochs_100/last.pt'
+weightsPath = 'C:/Users/Iliyan Tashinov/Desktop/YOLO_Vignette_Sticker_Validator/weights/epochs_100/last.pt'
 model = torch.hub.load('ultralytics/yolov5', 'custom', path= weightsPath, force_reload=True)
-video = 'C:/Users/[...]/Desktop/YOLO_Vignette_Sticker_Validator/video_test.mp4'
+video = 'C:/Users/Iliyan Tashinov/Desktop/YOLO_Vignette_Sticker_Validator/video_test.mp4'
 
 #Define the functions
 
@@ -60,8 +64,8 @@ def get_contour1(crop):
     return crop_contoured
 
 
-def extract_license(crop_contoured):
-
+def extract_license(crop_path):
+    crop_contoured = cv2.imread(crop_path,cv2.COLOR_BGR2GRAY)
     analysis = cv2.connectedComponentsWithStats(crop_contoured,4,cv2.CV_32S)
     (totalLabels, label_ids, values, centroid) = analysis
     symbolList = []
@@ -106,22 +110,14 @@ def extract_license(crop_contoured):
     return license_plate
 
 
-def get_extraction(gray_frame, detections, frame_count):
+def get_extraction(gray_frame, detections, frame_count,ith_detection):
     frame_count = frame_count
-    plate_format = re.compile('^[a-zA-Z]{2}[0-9]{4}[a-zA-Z]{2}$')
-    plate_format1 = re.compile('^[a-zA-Z]{1}[0-9]{4}[a-zA-Z]{2}$')
     data = detections
     crop = get_crop(gray_frame, data)
     crop_contoured = get_contour1(crop)
-
-    license_plate = extract_license(crop_contoured)
-    print(license_plate)
-
-    if plate_format.match(license_plate) is not None or plate_format1.match(license_plate) is not None:
-        return crop_contoured, license_plate
-
-    license_plate = "N/A"
-    return crop_contoured, license_plate
+    global filePath
+    filePath = f'C:/Users/Iliyan Tashinov/Desktop/YOLO_Vignette_Sticker_Validator/crops/crop_contoured{frame_count}_{int(ith_detection)+1}.png'
+    cv2.imwrite(filePath, crop_contoured)
 
 
 def check_license(license_plate):
@@ -137,20 +133,71 @@ def check_license(license_plate):
     if (p['vignette'] is None):
         result_text = "Vignette not valid."
         time_left = "N/A"
-        return result_text, time_left
+        validation_lst.append(result_text)
+        time_remaining_lst.append(time_left)
+        numPlt_lst.append(license_plate)
+        numPlt_lst_1.append(license_plate)
+        time_remaining_lst_1.append(time_left)
+        date_lst.append(datetime.today().strftime("%d/%m/%Y %H:%M:%S"))
+        return 0
 
     result_text = "Vignette is valid"
     time_left = p['vignette']['validityDateToFormated']
-    return result_text, time_left
-
+    numPlt_lst_1.append(license_plate)
+    time_remaining_lst_1.append(time_left)
+    validation_lst.append(result_text)
+    time_remaining_lst.append(time_left)
+    numPlt_lst.append(license_plate)
+    date_lst.append(datetime.today().strftime("%d/%m/%Y %H:%M:%S"))
+    return 0
 
 #set empty lists
 crop_index = []
-number_plate = []
-date =[]
-time_lst = []
-validation_df = []
+numPlt_lst = []
+date_lst =[]
+validation_lst = []
 time_remaining_lst = []
+time_lst = []
+crop_que= queue.Queue()
+extracted_que = queue.Queue()
+numPlt_lst_1 = []
+time_remaining_lst_1 = []
+
+start_point = (0, 0)
+end_point = (380, 100)
+color = (50, 50, 50)
+thickness = -1
+
+print("everything loaded up until here")
+def printPath(queue):
+    crop_path = queue.get()
+    license = extract_license(crop_path)
+    plate_format = re.compile('^[a-zA-Z]{2}[0-9]{4}[a-zA-Z]{2}$')
+    plate_format1 = re.compile('^[a-zA-Z]{1}[0-9]{4}[a-zA-Z]{2}$')
+
+    if (plate_format.match(license) is not None or plate_format1.match(license) is not None) and license not in numPlt_lst:
+        extracted_que.put(license)
+        check_license(license)
+        return 0
+    return 0
+
+def printConsoleOutput(frame):
+
+    x, y = 20, 50  # Position of the label in the window
+    line_height = 18  # Height between each list item
+    for idx, item in enumerate(numPlt_lst_1):
+        cv2.putText(frame, item, (x, y + idx * line_height), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.8, (0,180,0), 1)
+
+    x, y = 115, 50  # Position of the label in the window
+    line_height = 18  # Height between each list item
+    for idx, item in enumerate(time_remaining_lst_1):
+        cv2.putText(frame, item, (x, y + idx * line_height), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.8, (0,180,0), 1)
+
+    if len(numPlt_lst_1) > 3:
+            numPlt_lst_1.pop()
+            time_remaining_lst_1.pop()
+
+    cv2.rectangle(frame, start_point, end_point, color, thickness)
 
 # load video
 cap = cv2.VideoCapture(video)
@@ -159,22 +206,24 @@ frame_count = 1
 # start video
 while cap.isOpened():
 
-    start_time = time.time()
 
+    start_time = time.time()
     ret, frame = cap.read()  # ret is boolean, returns true if frame is available;
     frame_resized = cv2.resize(frame, (608, 608))  # resizing the frames for better utilization of YOLO
-
     results = model(frame_resized)  # run YOLO on the resized frame
-    print(f'-----number of plates detected = {len((results.xyxy[0]))} - at frame {frame_count}--------------')
 
+    cv2.putText(frame_resized, "CONSOLE", (50, 20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 180, 0), 1)
+    printConsoleOutput(frame_resized)
+
+
+    print(f'-----number of plates detected = {len((results.xyxy[0]))} - at frame {frame_count}--------------')
     #    ---      ---      ---        0  1  2  3  4  5
     # loop through elements in tensor[h1,w1,h2,w2,cf,lb]
     for i in range(len(results.xyxy[0])):  # len represents the number of tensors;n tensors is the number of detections;#the loop is executed for each tenso
 
         print(f'checking confidence level of detection - {i + 1} ')
 
-        conf = results.xyxy[0][i][
-            4]  # take the ith tensor/detection ; #conf = data[4] #take the confidence of that detection
+        conf = results.xyxy[0][i][4]  # take the ith tensor/detection ; #conf = data[4] #take the confidence of that detection
 
         if (conf < 0.80):  # checking how confident is the model; not acceptable under 80%
             print("detection's confidence is too low")
@@ -185,41 +234,13 @@ while cap.isOpened():
 
         a, b = draw_rectangle(frame_resized, results.xyxy[0][i])
         gray_frame = format_frame(frame)
-        extraction = get_extraction(gray_frame, results.xyxy[0][i], frame_count)
-        text_license = extraction[1]
+        extraction = get_extraction(gray_frame, results.xyxy[0][i], frame_count,i)
+        crop_que.put(filePath)
+        t1 = threading.Thread(target=printPath,args = (crop_que,))
+        t1.start()
 
-        if text_license == "N/A":
-            continue
-        # check if plate has already been processed
-        if (text_license in number_plate):
-            print(f'{text_license} is already recorded')
-            plate_index = number_plate.index(text_license)
-            frame_resized = cv2.putText(frame_resized,
-                                        f"{validation_df[plate_index]} || {time_remaining_lst[plate_index]}",
-                                        (a[0], a[1] - 30), cv2.FONT_HERSHEY_SIMPLEX,
-                                        1, (255, 0, 0), 1, cv2.LINE_AA)
-            continue
+    time_lst.append(time.time() - start_time)
 
-        print('new license plate found')
-        validation = check_license(text_license)  # Validating sticker
-        vignette_status = validation[0]
-        time_remaining = validation[1]
-
-        frame_resized = cv2.putText(frame_resized, f"{vignette_status} || {time_remaining}", (a[0], a[1] - 30),
-                                    cv2.FONT_HERSHEY_SIMPLEX,
-                                    1, (255, 0, 0), 1, cv2.LINE_AA)
-        print(f'data for detection number and license plate {i + 1} => {text_license} has been collected')
-
-        # gathering data
-        number_plate.append(text_license)  # add number_plate
-        crop_index.append(frame_count)  # record frame of detection
-        date.append(datetime.today().strftime("%d/%m/%Y %H:%M:%S"))  # record time of detection
-        validation_df.append(vignette_status)  # add vignette status
-        time_remaining_lst.append(time_remaining)  # add remaining time of vignette
-
-        print(f'++++end of analysis for detection number {i + 1}++++')
-
-    time_lst = [time.time() - start_time]
     frame_count += 1
 
     # display frame
@@ -231,12 +252,22 @@ while cap.isOpened():
 cap.release()
 cv2.destroyAllWindows()
 
-# aggregate data
-data = list(zip(crop_index, number_plate, date
-                , validation_df, time_remaining_lst))
-df = pd.DataFrame(data, columns=["frame", "number plate", "time of detection", "sticker status", "time until expiry"])
+t1.join()
 
+print("waiting before print")
+for i in range(0,11):
+    time.sleep(1)
+    print(f'{i} seconds')
 
+data = list(zip(numPlt_lst,date_lst,validation_lst, time_remaining_lst))
+df = pd.DataFrame(data, columns=["number plate","detected on", "vignette status", "date-time of expiry"])
+print("-------------------------------------Data Export------------------------------------------")
 print(df)
 
+def Average(lst):
+    return sum(lst) / len(lst)
 
+average = Average(time_lst)
+print("-------------------------------------Performance Stats-------------------------------------")
+print("Average time needed for a frame to load=", round(average, 2))
+print(f"Total Frames = {frame_count}")
