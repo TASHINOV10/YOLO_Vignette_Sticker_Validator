@@ -12,14 +12,6 @@ This repository contains code for license plate recognition using the YOLO (You 
 
 To get started with the code, follow the steps below:
 
-### Prerequisites
-
-Make sure you have the following installed:
-
-- Python (version 3.6 or higher)
-- PyTorch (version 1.7 or higher)
-- Tesseract OCR (version 4.0 or higher)
-
 ### Clone the Repository
 
 Clone this GitHub repository by running the following command:
@@ -216,7 +208,7 @@ def get_extraction(gray_frame,detections,frame_count):
     data = detections
     crop = get_crop(gray_frame,data)
     crop_contoured = get_contour1(crop)
-    license_plate = extract_license(crop_contoured,frame_count)
+    license_plate = extract_license(crop_contoured)
     print(license_plate)
     
     if plate_format.match(license_plate) is not None or plate_format1.match(license_plate) is not None:
