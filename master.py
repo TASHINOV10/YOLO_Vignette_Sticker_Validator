@@ -11,16 +11,20 @@ import time
 from datetime import datetime
 import json
 import requests
+import os
 
 #Set the paths according to your setup
 tesseract_executable = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 pytesseract.pytesseract.tesseract_cmd = tesseract_executable
 weightsPath = 'C:/Users/Iliyan Tashinov/Desktop/YOLOv5_Vignette_Sticker_Validator/weights/epochs_100/last.pt'
 model = torch.hub.load('ultralytics/yolov5', 'custom', path= weightsPath, force_reload=True)
-video = 'C:/Users/Iliyan Tashinov/Desktop/YOLO_Vignette_Sticker_Validator/video_test.mp4'
+video = 'C:/Users/Iliyan Tashinov/Desktop/YOLOv5_Vignette_Sticker_Validator/video_test.mp4'
+
+#Create a directory for storing the extracted license plates
+if not os.path.exists("crops"):
+    os.makedirs("crops")
 
 #Define the functions
-
 def format_frame(frame):
     resultimage = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     return resultimage
@@ -109,7 +113,7 @@ def get_extraction(gray_frame, detections, frame_count,ith_detection):
     crop = get_crop(gray_frame, data)
     crop_contoured = get_contour1(crop)
     global filePath
-    filePath = f'C:/Users/Iliyan Tashinov/Desktop/YOLO_Vignette_Sticker_Validator/crops/crop_contoured{frame_count}_{int(ith_detection)+1}.png'
+    filePath = f'C:/Users/Iliyan Tashinov/Desktop/YOLOv5_Vignette_Sticker_Validator/crops/crop_contoured{frame_count}_{int(ith_detection)+1}.png'
     cv2.imwrite(filePath, crop_contoured)
 
 
@@ -175,6 +179,9 @@ def printPath(queue):
     return 0
 
 def printConsoleOutput(frame):
+    cv2.rectangle(frame, start_point, end_point, color, thickness)
+
+    cv2.putText(frame, "CONSOLE", (50, 20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 180, 0), 1)
 
     x, y = 20, 50  # Position of the label in the window
     line_height = 18  # Height between each list item
@@ -186,11 +193,11 @@ def printConsoleOutput(frame):
     for idx, item in enumerate(time_remaining_lst_1):
         cv2.putText(frame, item, (x, y + idx * line_height), cv2.FONT_HERSHEY_COMPLEX_SMALL, 0.8, (0,180,0), 1)
 
-    if len(numPlt_lst_1) > 3:
-            numPlt_lst_1.pop()
-            time_remaining_lst_1.pop()
+    if len(numPlt_lst_1) > 2:
+            numPlt_lst_1.pop(0)
+            time_remaining_lst_1.pop(0)
 
-    cv2.rectangle(frame, start_point, end_point, color, thickness)
+
 
 # load video
 cap = cv2.VideoCapture(video)
@@ -205,9 +212,7 @@ while cap.isOpened():
     frame_resized = cv2.resize(frame, (608, 608))  # resizing the frames for better utilization of YOLO
     results = model(frame_resized)  # run YOLO on the resized frame
 
-    cv2.putText(frame_resized, "CONSOLE", (50, 20), cv2.FONT_HERSHEY_COMPLEX_SMALL, 1, (0, 180, 0), 1)
     printConsoleOutput(frame_resized)
-
 
     print(f'-----number of plates detected = {len((results.xyxy[0]))} - at frame {frame_count}--------------')
     #    ---      ---      ---        0  1  2  3  4  5
