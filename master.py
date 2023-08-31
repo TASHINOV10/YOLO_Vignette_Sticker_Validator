@@ -93,14 +93,11 @@ def extract_license(crop_path):
             symbol = pytesseract.image_to_string(cropped_component,
             config='-c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ --psm 10 --oem 3')
             symbol = symbol.replace('\n', '')
-            print(symbol)
             symbolList.append(symbol)
             xCentroidList.append(X)
 
         except:
             continue
-
-    print(symbolList)
     xCentroidList, symbolList = zip(*sorted(zip(xCentroidList, symbolList)))
     license_plate = ''.join(symbolList)
 
@@ -165,8 +162,7 @@ end_point = (380, 100)
 color = (50, 50, 50)
 thickness = -1
 
-print("everything loaded up until here")
-def printPath(queue):
+def processCrop(queue):
     crop_path = queue.get()
     license = extract_license(crop_path)
     plate_format = re.compile('^[a-zA-Z]{2}[0-9]{4}[a-zA-Z]{2}$')
@@ -234,7 +230,7 @@ while cap.isOpened():
         gray_frame = format_frame(frame)
         extraction = get_extraction(gray_frame, results.xyxy[0][i], frame_count,i)
         crop_que.put(filePath)
-        t1 = threading.Thread(target=printPath,args = (crop_que,))
+        t1 = threading.Thread(target=processCrop,args = (crop_que,))
         t1.start()
 
     time_lst.append(time.time() - start_time)
@@ -252,8 +248,9 @@ cv2.destroyAllWindows()
 
 t1.join()
 
-print("waiting before print")
-for i in range(0,11):
+#adding sleep time to allow the thread to load completely
+print("waiting 5 seconds before print")
+for i in range(0,6):
     time.sleep(1)
     print(f'{i} seconds')
 
